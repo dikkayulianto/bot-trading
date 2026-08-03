@@ -43,9 +43,12 @@ def get_filling_type(symbol_info):
     Determines the correct order filling mode supported by the broker for the symbol.
     """
     filling_mode = symbol_info.filling_mode
-    if filling_mode & mt5.SYMBOL_FILLING_FOK:
+    
+    # Check bitwise flags: 1 = FOK, 2 = IOC
+    # (Since mt5.SYMBOL_FILLING_FOK/IOC constants are not defined in the MT5 Python package)
+    if filling_mode & 1:
         return mt5.ORDER_FILLING_FOK
-    elif filling_mode & mt5.SYMBOL_FILLING_IOC:
+    elif filling_mode & 2:
         return mt5.ORDER_FILLING_IOC
     else:
         return mt5.ORDER_FILLING_RETURN
