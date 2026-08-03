@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MT5 Algo Trading Bot Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="app-container">
+        <!-- HEADER PANEL -->
+        <header class="main-header">
+            <div class="logo-area">
+                <span class="logo-icon">🤖</span>
+                <h1>MT5 Algo Trading Bot</h1>
+            </div>
+            
+            <div class="status-controls">
+                <div class="status-badges">
+                    <div id="bot-status-badge" class="badge badge-stopped">
+                        <span class="dot"></span> Bot: <span class="status-text">STOPPED</span>
+                    </div>
+                    <div id="mt5-status-badge" class="badge badge-offline">
+                        <span class="dot"></span> MT5: <span class="status-text">DISCONNECTED</span>
+                    </div>
+                </div>
+                
+                <div class="control-buttons">
+                    <button id="btn-start" class="btn btn-success" onclick="startBot()">⚡ START BOT</button>
+                    <button id="btn-stop" class="btn btn-danger" onclick="stopBot()" disabled>🛑 STOP BOT</button>
+                </div>
+            </div>
+        </header>
+
+        <!-- DASHBOARD GRID -->
+        <main class="dashboard-grid">
+            
+            <!-- LEFT COLUMN: STATS & CONFIG -->
+            <section class="left-column">
+                
+                <!-- Account Stats Card -->
+                <div class="card card-stats">
+                    <div class="card-header">
+                        <h2>📊 Informasi Akun</h2>
+                        <span id="account-server" class="server-text">-</span>
+                    </div>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <span class="stat-label">Login ID</span>
+                            <span id="stat-login" class="stat-val">-</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Balance</span>
+                            <span id="stat-balance" class="stat-val">$0.00</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Equity</span>
+                            <span id="stat-equity" class="stat-val">$0.00</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Floating Profit</span>
+                            <span id="stat-profit" class="stat-val">$0.00</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Config Card -->
+                <div class="card card-config">
+                    <div class="card-header">
+                        <h2>⚙️ Pengaturan Parameter</h2>
+                        <button type="button" class="btn btn-save" onclick="saveConfig()">💾 Simpan</button>
+                    </div>
+                    <form id="config-form" class="config-form">
+                        <div class="form-group full-width">
+                            <label for="symbols">Mata Uang (Pisahkan dengan koma)</label>
+                            <input type="text" id="symbols" name="symbols" placeholder="EURUSD, GBPUSD, USDJPY">
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="timeframe">Timeframe</label>
+                                <select id="timeframe" name="timeframe">
+                                    <option value="M1">M1 (1 Menit)</option>
+                                    <option value="M5">M5 (5 Menit)</option>
+                                    <option value="M15">M15 (15 Menit)</option>
+                                    <option value="M30">M30 (30 Menit)</option>
+                                    <option value="H1">H1 (1 Jam)</option>
+                                    <option value="H4">H4 (4 Jam)</option>
+                                    <option value="D1">D1 (1 Hari)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="lot_size">Lot Size</label>
+                                <input type="number" id="lot_size" name="lot_size" step="0.01" min="0.01">
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="sl_pips">Stop Loss (Pips)</label>
+                                <input type="number" id="sl_pips" name="sl_pips" step="0.5" min="0">
+                            </div>
+                            <div class="form-group">
+                                <label for="tp_pips">Take Profit (Pips)</label>
+                                <input type="number" id="tp_pips" name="tp_pips" step="0.5" min="0">
+                            </div>
+                        </div>
+
+                        <div class="form-divider">Parameter Strategi (EMA & RSI)</div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="ema_fast">EMA Fast</label>
+                                <input type="number" id="ema_fast" name="ema_fast" min="1">
+                            </div>
+                            <div class="form-group">
+                                <label for="ema_slow">EMA Slow</label>
+                                <input type="number" id="ema_slow" name="ema_slow" min="1">
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="rsi_period">RSI Period</label>
+                                <input type="number" id="rsi_period" name="rsi_period" min="1">
+                            </div>
+                            <div class="form-group">
+                                <label for="loop_interval_seconds">Interval Cek (Detik)</label>
+                                <input type="number" id="loop_interval_seconds" name="loop_interval_seconds" min="5">
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="rsi_overbought">RSI Overbought (Filter Buy)</label>
+                                <input type="number" id="rsi_overbought" name="rsi_overbought" min="50" max="100">
+                            </div>
+                            <div class="form-group">
+                                <label for="rsi_oversold">RSI Oversold (Filter Sell)</label>
+                                <input type="number" id="rsi_oversold" name="rsi_oversold" min="0" max="50">
+                            </div>
+                        </div>
+
+                        <input type="hidden" id="magic_number" name="magic_number">
+                    </form>
+                </div>
+            </section>
+
+            <!-- RIGHT COLUMN: CHART & LOGS -->
+            <section class="right-column">
+                
+                <!-- Chart Panel -->
+                <div class="card card-chart">
+                    <div class="card-header">
+                        <h2>📈 Grafik Analisis Real-Time</h2>
+                        <div class="chart-controls">
+                            <select id="chart-symbol-select" onchange="updateChartFromDropdown()">
+                                <!-- Dynamic options -->
+                            </select>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <div id="tradingview_chart"></div>
+                    </div>
+                </div>
+
+                <!-- Open Positions Card -->
+                <div class="card card-positions">
+                    <div class="card-header">
+                        <h2>💼 Posisi Terbuka</h2>
+                    </div>
+                    <div class="table-container">
+                        <table class="positions-table">
+                            <thead>
+                                <tr>
+                                    <th>Ticket</th>
+                                    <th>Simbol</th>
+                                    <th>Tipe</th>
+                                    <th>Lot</th>
+                                    <th>Harga Open</th>
+                                    <th>Harga Live</th>
+                                    <th>SL</th>
+                                    <th>TP</th>
+                                    <th>Profit</th>
+                                </tr>
+                            </thead>
+                            <tbody id="positions-table-body">
+                                <tr>
+                                    <td colspan="9" class="empty-table-text">Tidak ada posisi terbuka.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Logs Card -->
+                <div class="card card-logs">
+                    <div class="card-header">
+                        <h2>💻 Konsol Log Aktivitas</h2>
+                        <button class="btn btn-clear-logs" onclick="clearLogsUI()">Clear Console</button>
+                    </div>
+                    <div id="log-console" class="log-console">
+                        <!-- Dynamic logs -->
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Floating Notification toast -->
+    <div id="notification" class="notification"></div>
+
+    <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

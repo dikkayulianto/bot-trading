@@ -1,0 +1,14 @@
+{
+  "symbols": ["EURUSD", "GBPUSD", "USDJPY", "AUDUSD"],
+  "timeframe": "M5",
+  "lot_size": 0.01,
+  "sl_pips": 15.0,
+  "tp_pips": 30.0,
+  "magic_number": 20260803,
+  "ema_fast": 9,
+  "ema_slow": 21,
+  "rsi_period": 14,
+  "rsi_overbought": 70,
+  "rsi_oversold": 30,
+  "loop_interval_seconds": 10
+}
