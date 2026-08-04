@@ -249,6 +249,10 @@ def get_gemini_market_analysis(symbol, timeframe_str, api_key, config_data):
     """
     symbol_info = mt5.symbol_info(symbol)
     if symbol_info is None:
+        mt5.symbol_select(symbol, True)
+        symbol_info = mt5.symbol_info(symbol)
+        
+    if symbol_info is None:
         return {"status": "error", "message": f"Simbol {symbol} tidak ditemukan."}
 
     tick = mt5.symbol_info_tick(symbol)
