@@ -9,6 +9,9 @@ import MetaTrader5 as mt5
 
 app = Flask(__name__)
 
+# Mute Werkzeug logging to prevent HTTP request polling logs from flooding our console
+logging.getLogger('werkzeug').setLevel(logging.WARNING)
+
 # Ensure absolute paths for config.json
 CONFIG_FILE = os.path.join(os.path.dirname(__file__), "config.json")
 
