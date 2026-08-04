@@ -308,7 +308,7 @@ def get_gemini_market_analysis(symbol, timeframe_str, api_key, config_data):
     """
 
     # Call Gemini API (using gemini-3.5-flash which we verified works with v1beta)
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key={api_key}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key={api_key}"
     headers = {"Content-Type": "application/json"}
     payload = {
         "contents": [{
