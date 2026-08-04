@@ -230,9 +230,28 @@ def api_ai_analysis_all():
     try:
         latest_results = bot.load_latest_ai_results()
         
-        for symbol in symbols:
-            logging.info(f"Manual Bulk Analysis - Running Gemini AI for {symbol}...")
-            result = bot.get_gemini_market_analysis(symbol, timeframe, api_key, config_data)
+        from concurrent.futures import ThreadPoolExecutor
+        
+        def analyze_symbol(item):
+            index, symbol = item
+            # Stagger requests by index * 2 seconds to avoid Gemini API concurrency burst limits (HTTP 429)
+            if index > 0:
+                time.sleep(index * 2.0)
+                
+            # Explicitly initialize and shutdown MT5 for each worker thread since MT5 is thread-local
+            mt5.initialize()
+            try:
+                logging.info(f"Parallel Bulk Analysis - Running Gemini AI for {symbol}...")
+                result = bot.get_gemini_market_analysis(symbol, timeframe, api_key, config_data)
+                return symbol, result
+            finally:
+                mt5.shutdown()
+                
+        # Run analyses in parallel with staggering
+        with ThreadPoolExecutor(max_workers=len(symbols)) as executor:
+            results = list(executor.map(analyze_symbol, enumerate(symbols)))
+            
+        for symbol, result in results:
             if result["status"] == "success":
                 latest_results[symbol] = {
                     "recommendation": result["recommendation"],
@@ -243,7 +262,7 @@ def api_ai_analysis_all():
                     "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
                 }
             else:
-                logging.error(f"Manual Bulk Analysis - Failed for {symbol}: {result['message']}")
+                logging.error(f"Parallel Bulk Analysis - Failed for {symbol}: {result['message']}")
                 latest_results[symbol] = {
                     "recommendation": "ERROR",
                     "confidence": 0,
