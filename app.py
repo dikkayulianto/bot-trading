@@ -3,6 +3,7 @@ import json
 import os
 import logging
 from flask import Flask, jsonify, request, render_template
+import pandas as pd
 
 import bot
 import MetaTrader5 as mt5
