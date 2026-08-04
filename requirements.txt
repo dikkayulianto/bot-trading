@@ -2,3 +2,4 @@ MetaTrader5
 pandas
 ta
 Flask
+requests

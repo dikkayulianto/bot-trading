@@ -162,6 +162,153 @@ def api_stop():
     bot.stop_bot()
     return jsonify({"status": "success", "message": "Trading bot stop request sent."})
 
+import requests
+
+@app.route("/api/ai-analysis", methods=["GET"])
+def api_ai_analysis():
+    symbol = request.args.get("symbol", "").upper().strip()
+    if not symbol:
+        return jsonify({"status": "error", "message": "Symbol is required."}), 400
+
+    config_data = read_config()
+    api_key = config_data.get("gemini_api_key", "").strip()
+    if not api_key:
+        return jsonify({"status": "error", "message": "Mohon masukkan Gemini API Key Anda terlebih dahulu di panel pengaturan."}), 400
+
+    # Ensure MT5 is initialized
+    is_temp_init = False
+    if not bot.bot_running:
+        try:
+            if not mt5.initialize():
+                return jsonify({"status": "error", "message": "Gagal menghubungkan ke terminal MT5."}), 500
+            is_temp_init = True
+        except Exception as e:
+            return jsonify({"status": "error", "message": f"MT5 Init Exception: {e}"}), 500
+
+    try:
+        # Get Symbol Info
+        symbol_info = mt5.symbol_info(symbol)
+        if symbol_info is None:
+            return jsonify({"status": "error", "message": f"Simbol {symbol} tidak ditemukan di MT5."}), 400
+            
+        tick = mt5.symbol_info_tick(symbol)
+        if tick is None:
+            return jsonify({"status": "error", "message": f"Gagal mengambil tick harga untuk {symbol}."}), 500
+
+        # Get historical rates
+        tf_str = config_data.get("timeframe", "M5")
+        mt5_tf = bot.TIMEFRAME_MAP.get(tf_str, mt5.TIMEFRAME_M5)
+        rates = mt5.copy_rates_from_pos(symbol, mt5_tf, 0, 100)
+        
+        if rates is None or len(rates) < 30:
+            return jsonify({"status": "error", "message": f"Data historis untuk {symbol} tidak mencukupi."}), 500
+
+        df = pd.DataFrame(rates)
+        df['time'] = pd.to_datetime(df['time'], unit='s')
+        
+        # Calculate technical indicators
+        import strategy
+        df = strategy.calculate_indicators(
+            df, 
+            config_data.get("ema_fast", 9), 
+            config_data.get("ema_slow", 21), 
+            config_data.get("rsi_period", 14)
+        )
+        
+        # Current values
+        curr_row = df.iloc[-1]
+        
+        # Form summary of last 10 candles
+        candles_summary = []
+        last_10 = df.tail(10)
+        for _, row in last_10.iterrows():
+            candles_summary.append(
+                f"Time: {row['time'].strftime('%Y-%m-%d %H:%M')}, O: {row['open']:.5f}, H: {row['high']:.5f}, L: {row['low']:.5f}, C: {row['close']:.5f}, Vol: {row['tick_volume']}"
+            )
+        candles_summary_str = "\n".join(candles_summary)
+
+        # Prepare Prompt for Gemini
+        prompt = f"""
+        Anda adalah analis trading Forex profesional yang sangat cerdas.
+        Tolong analisis pasangan mata uang {symbol} pada timeframe {tf_str} berdasarkan data harga dan indikator teknis berikut:
+        
+        - Harga saat ini: Bid={tick.bid:.5f}, Ask={tick.ask:.5f}
+        - Candle Terakhir (OHLC): Open={curr_row['open']:.5f}, High={curr_row['high']:.5f}, Low={curr_row['low']:.5f}, Close={curr_row['close']:.5f}
+        - EMA Fast ({config_data.get("ema_fast", 9)}): {curr_row['ema_fast']:.5f}
+        - EMA Slow ({config_data.get("ema_slow", 21)}): {curr_row['ema_slow']:.5f}
+        - RSI ({config_data.get("rsi_period", 14)}): {curr_row['rsi']:.2f}
+        - Tren EMA: {'Bullish (Fast > Slow)' if curr_row['ema_fast'] > curr_row['ema_slow'] else 'Bearish (Fast < Slow)'}
+        
+        Analisis data historis 10 lilin terakhir (OHLCV):
+        {candles_summary_str}
+        
+        Tolong berikan analisis pasar mendalam, tentukan area Support (S) dan Resistance (R), evaluasi kekuatan tren, lalu berikan rekomendasi keputusan (BUY, SELL, atau HOLD) beserta skor kepercayaan dalam persen (0-100%).
+        
+        Anda HARUS membalas HANYA dalam format JSON dengan struktur persis seperti di bawah ini tanpa markdown tambahan (seperti ```json):
+        {{
+          "recommendation": "BUY" atau "SELL" atau "HOLD",
+          "confidence": nilai integer antara 0 hingga 100,
+          "support": nilai float batas support,
+          "resistance": nilai float batas resistance,
+          "analysis": "Laporan analisis pasar lengkap Anda dalam Bahasa Indonesia. Gunakan tag HTML seperti <h3>, <p>, <ul>, dan <li> untuk membuat teks rapi."
+        }}
+        """
+
+        # Call Google Gemini API
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+        headers = {"Content-Type": "application/json"}
+        payload = {
+            "contents": [{
+                "parts": [{
+                    "text": prompt
+                }]
+            }],
+            "generationConfig": {
+                "responseMimeType": "application/json"
+            }
+        }
+        
+        response = requests.post(url, headers=headers, json=payload, timeout=25)
+        
+        if response.status_code != 200:
+            return jsonify({"status": "error", "message": f"Gemini API Error: {response.text}"}), response.status_code
+
+        response_data = response.json()
+        
+        try:
+            # Parse the text response which contains the JSON
+            ai_text = response_data['candidates'][0]['content']['parts'][0]['text']
+            ai_json = json.loads(ai_text)
+            
+            # Make sure keys exist
+            rec = ai_json.get("recommendation", "HOLD")
+            conf = ai_json.get("confidence", 50)
+            sup = ai_json.get("support", tick.bid)
+            res = ai_json.get("resistance", tick.ask)
+            ana = ai_json.get("analysis", "Gagal menganalisis pasar.")
+            
+            return jsonify({
+                "status": "success",
+                "data": {
+                    "recommendation": rec,
+                    "confidence": conf,
+                    "support": float(sup),
+                    "resistance": float(res),
+                    "analysis": ana
+                }
+            })
+        except Exception as parse_err:
+            logging.error(f"Failed to parse Gemini response: {parse_err}")
+            return jsonify({"status": "error", "message": "Gagal mengurai respon analisis dari AI."}), 500
+
+    except Exception as e:
+        logging.error(f"Exception in AI Analysis endpoint: {e}")
+        return jsonify({"status": "error", "message": f"Sistem Error: {e}"}), 500
+        
+    finally:
+        if is_temp_init:
+            mt5.shutdown()
+
 if __name__ == "__main__":
     # Ensure templates and static folders exist
     os.makedirs(os.path.join(os.path.dirname(__file__), "templates"), exist_ok=True)

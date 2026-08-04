@@ -144,6 +144,11 @@
                             </div>
                         </div>
 
+                        <div class="form-group full-width" style="margin-top: 8px;">
+                            <label for="gemini_api_key">Gemini API Key</label>
+                            <input type="password" id="gemini_api_key" name="gemini_api_key" placeholder="AIzaSy...">
+                        </div>
+
                         <input type="hidden" id="magic_number" name="magic_number">
                     </form>
                 </div>
@@ -164,6 +169,22 @@
                     </div>
                     <div class="chart-container">
                         <div id="tradingview_chart"></div>
+                    </div>
+                </div>
+
+                <!-- AI Analysis Card -->
+                <div class="card card-ai-analysis">
+                    <div class="card-header">
+                        <h2>🧠 Gemini AI Market Analyst</h2>
+                        <button id="btn-ai" class="btn btn-primary" onclick="requestAIAnalysis()">
+                            <span id="ai-btn-text">🔄 Minta Analisis AI</span>
+                            <div id="ai-btn-spinner" class="spinner" style="display: none;"></div>
+                        </button>
+                    </div>
+                    <div id="ai-result-panel" class="ai-result-panel">
+                        <div class="ai-empty-state">
+                            Klik tombol di atas untuk menganalisis pergerakan harga **<span id="ai-active-symbol">-</span>** menggunakan AI.
+                        </div>
                     </div>
                 </div>
 

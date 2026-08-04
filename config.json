@@ -5,7 +5,7 @@
     "USDJPY",
     "AUDUSD"
   ],
-  "timeframe": "M15",
+  "timeframe": "M5",
   "lot_size": 0.01,
   "sl_pips": 15.0,
   "tp_pips": 30.0,
@@ -15,5 +15,6 @@
   "rsi_period": 14,
   "rsi_overbought": 70.0,
   "rsi_oversold": 30.0,
-  "loop_interval_seconds": 10
+  "loop_interval_seconds": 10,
+  "gemini_api_key": ""
 }

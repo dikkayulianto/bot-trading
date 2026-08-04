@@ -54,6 +54,7 @@ async function fetchConfig() {
         document.getElementById("rsi_overbought").value = data.rsi_overbought;
         document.getElementById("rsi_oversold").value = data.rsi_oversold;
         document.getElementById("loop_interval_seconds").value = data.loop_interval_seconds;
+        document.getElementById("gemini_api_key").value = data.gemini_api_key || "";
 
         // Update Chart Dropdown Option list
         updateChartDropdownOptions(data.symbols);
@@ -138,6 +139,7 @@ async function saveConfig() {
     const rsiOverboughtVal = document.getElementById("rsi_overbought").value;
     const rsiOversoldVal = document.getElementById("rsi_oversold").value;
     const intervalVal = document.getElementById("loop_interval_seconds").value;
+    const geminiKeyVal = document.getElementById("gemini_api_key").value;
 
     const payload = {
         symbols: symbolsVal,
@@ -151,7 +153,8 @@ async function saveConfig() {
         rsi_period: rsiPeriodVal,
         rsi_overbought: rsiOverboughtVal,
         rsi_oversold: rsiOversoldVal,
-        loop_interval_seconds: intervalVal
+        loop_interval_seconds: intervalVal,
+        gemini_api_key: geminiKeyVal
     };
 
     try {
@@ -260,6 +263,14 @@ async function fetchStatus() {
             tbody.innerHTML = `<tr><td colspan="9" class="empty-table-text">Tidak ada posisi terbuka saat ini.</td></tr>`;
         }
 
+        // Update AI Active Symbol Text
+        const symbolSelect = document.getElementById("chart-symbol-select");
+        const activeSymbol = symbolSelect ? symbolSelect.value : "-";
+        const aiActiveSymbolEl = document.getElementById("ai-active-symbol");
+        if (aiActiveSymbolEl && activeSymbol) {
+            aiActiveSymbolEl.innerText = activeSymbol;
+        }
+
     } catch (error) {
         console.error("Error fetching status:", error);
     }
@@ -352,4 +363,97 @@ function formatCurrency(val) {
 function clearLogsUI() {
     document.getElementById("log-console").innerHTML = "";
     displayedLogsCount = 0;
+}
+
+// Request AI Analysis from Gemini
+async function requestAIAnalysis() {
+    const symbolSelect = document.getElementById("chart-symbol-select");
+    const symbol = symbolSelect.value;
+    if (!symbol) {
+        showNotification("Pilihlah instrumen/simbol di grafik terlebih dahulu.", "error");
+        return;
+    }
+
+    const btnAi = document.getElementById("btn-ai");
+    const btnText = document.getElementById("ai-btn-text");
+    const btnSpinner = document.getElementById("ai-btn-spinner");
+    const resultPanel = document.getElementById("ai-result-panel");
+
+    // Loading State
+    btnAi.disabled = true;
+    btnText.innerText = "Menganalisis...";
+    btnSpinner.style.display = "inline-block";
+
+    try {
+        const response = await fetch(`/api/ai-analysis?symbol=${symbol}`);
+        const result = await response.json();
+
+        if (response.ok && result.status === "success") {
+            showNotification("Analisis AI Gemini selesai!");
+            
+            // Format Recommendation Badge
+            const rec = result.data.recommendation.toUpperCase();
+            let badgeClass = "hold";
+            if (rec === "BUY") badgeClass = "buy";
+            else if (rec === "SELL") badgeClass = "sell";
+
+            // Format markdown-like response to HTML (simple translation)
+            let formattedAnalysis = result.data.analysis
+                .replace(/\n/g, "<br>")
+                .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+                .replace(/\*(.*?)\*/g, "<em>$1</em>")
+                .replace(/### (.*?)(<br>|$)/g, "<h3>$1</h3>")
+                .replace(/- (.*?)(<br>|$)/g, "<li>$1</li>");
+
+            resultPanel.innerHTML = `
+                <div class="ai-summary-grid">
+                    <div class="ai-stat-box">
+                        <span class="ai-stat-label">Rekomendasi</span>
+                        <span class="ai-badge ${badgeClass}">${rec}</span>
+                    </div>
+                    <div class="ai-stat-box">
+                        <span class="ai-stat-label">Confidence</span>
+                        <div class="confidence-wrapper">
+                            <div class="confidence-bar-bg">
+                                <div class="confidence-bar-fill" style="width: ${result.data.confidence}%"></div>
+                            </div>
+                            <span class="confidence-text">${result.data.confidence}%</span>
+                        </div>
+                    </div>
+                    <div class="ai-stat-box">
+                        <span class="ai-stat-label">Batas Support/Resistance</span>
+                        <div class="ai-levels">
+                            <span>S: <span class="level-val">${result.data.support.toFixed(5)}</span></span>
+                            <span>R: <span class="level-val">${result.data.resistance.toFixed(5)}</span></span>
+                        </div>
+                    </div>
+                    <div class="ai-stat-box full-width">
+                        <span class="ai-stat-label">Laporan Analisis Pasar</span>
+                        <div class="ai-report-box">${formattedAnalysis}</div>
+                    </div>
+                </div>
+                <span class="ai-timestamp">Dianalisis pada: ${new Date().toLocaleTimeString()}</span>
+            `;
+        } else {
+            showNotification("Gagal menganalisis: " + result.message, "error");
+            resultPanel.innerHTML = `
+                <div class="ai-empty-state" style="color: var(--danger); border-color: rgba(239,68,68,0.2); background-color: var(--danger-bg);">
+                    Gagal: ${result.message || "Terjadi kesalahan koneksi"}
+                </div>
+            `;
+        }
+    } catch (error) {
+        console.error("Error fetching AI analysis:", error);
+        showNotification("Kesalahan sistem saat menghubungi AI.", "error");
+        resultPanel.innerHTML = `
+            <div class="ai-empty-state" style="color: var(--danger); border-color: rgba(239,68,68,0.2); background-color: var(--danger-bg);">
+                Terjadi kesalahan koneksi sistem.
+            </div>
+        `;
+    } finally {
+        // Reset button
+        btnAi.disabled = false;
+        btnText.innerText = "🔄 Minta Analisis AI";
+        btnSpinner.style.display = "none";
+    }
 }

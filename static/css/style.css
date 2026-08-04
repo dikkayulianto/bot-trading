@@ -523,3 +523,175 @@ body {
 .notification.error {
     background-color: var(--danger);
 }
+
+/* AI ANALYSIS STYLES */
+.btn-primary {
+    background-color: var(--primary);
+    color: #fff;
+}
+.btn-primary:hover:not(:disabled) {
+    background-color: var(--primary-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+
+.spinner {
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-radius: 50%;
+    border-top-color: #fff;
+    animation: spin 0.8s linear infinite;
+    display: inline-block;
+    vertical-align: middle;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.ai-empty-state {
+    text-align: center;
+    color: var(--text-muted);
+    font-style: italic;
+    padding: 24px;
+    font-size: 12px;
+    background-color: rgba(0, 0, 0, 0.15);
+    border: 1px dashed var(--border-color);
+    border-radius: var(--radius-md);
+}
+
+.ai-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.ai-stat-box {
+    background-color: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 8px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    align-items: center;
+}
+
+.ai-stat-box.full-width {
+    grid-column: span 3;
+    align-items: stretch;
+}
+
+.ai-stat-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
+.ai-badge {
+    padding: 3px 12px;
+    border-radius: 50px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    display: inline-block;
+}
+.ai-badge.buy {
+    background-color: var(--success-bg);
+    color: var(--success);
+    border: 1px solid rgba(16, 185, 129, 0.2);
+}
+.ai-badge.sell {
+    background-color: var(--danger-bg);
+    color: var(--danger);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+}
+.ai-badge.hold {
+    background-color: rgba(255,255,255,0.05);
+    color: var(--text-muted);
+    border: 1px solid var(--border-color);
+}
+
+.confidence-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+}
+
+.confidence-bar-bg {
+    flex-grow: 1;
+    height: 6px;
+    background-color: rgba(255, 255, 255, 0.05);
+    border-radius: 50px;
+    overflow: hidden;
+}
+
+.confidence-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary) 0%, var(--success) 100%);
+    border-radius: 50px;
+    transition: width 0.5s ease-out;
+}
+
+.confidence-text {
+    font-size: 12px;
+    font-weight: 700;
+    min-width: 32px;
+    text-align: right;
+}
+
+.ai-levels {
+    display: flex;
+    gap: 14px;
+    font-size: 12px;
+    font-weight: 600;
+}
+.level-val {
+    font-family: var(--font-mono);
+    color: #fff;
+}
+
+.ai-report-box {
+    background-color: rgba(0, 0, 0, 0.25);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 12px 14px;
+    font-size: 12px;
+    line-height: 1.6;
+    color: #d1d5db;
+    max-height: 180px;
+    overflow-y: auto;
+    text-align: left;
+}
+
+.ai-report-box h3 {
+    color: #fff;
+    margin-top: 8px;
+    margin-bottom: 4px;
+    font-size: 13px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    padding-bottom: 4px;
+}
+
+.ai-report-box p {
+    margin-bottom: 6px;
+}
+
+.ai-report-box ul {
+    margin-left: 14px;
+    margin-bottom: 6px;
+}
+
+.ai-timestamp {
+    display: block;
+    font-size: 10px;
+    color: var(--text-muted);
+    text-align: right;
+    margin-top: 6px;
+    font-style: italic;
+}
