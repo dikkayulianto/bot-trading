@@ -144,6 +144,20 @@
                             </div>
                         </div>
 
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="strategy_mode">Mode Strategi</label>
+                                <select id="strategy_mode" name="strategy_mode" style="width: 100%; padding: 8px 12px; background: rgba(30, 30, 46, 0.5); border: 1px solid var(--border); border-radius: 6px; color: var(--text-primary); outline: none;">
+                                    <option value="TECHNICAL">Teknis (EMA Crossover + RSI)</option>
+                                    <option value="AI">Gemini AI Analyst</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="min_confidence">Min Confidence Score (%)</label>
+                                <input type="number" id="min_confidence" name="min_confidence" min="0" max="100" placeholder="70">
+                            </div>
+                        </div>
+
                         <div class="form-group full-width" style="margin-top: 8px;">
                             <label for="gemini_api_key">Gemini API Key</label>
                             <input type="password" id="gemini_api_key" name="gemini_api_key" placeholder="AIzaSy...">
@@ -176,14 +190,46 @@
                 <div class="card card-ai-analysis">
                     <div class="card-header">
                         <h2>🧠 Gemini AI Market Analyst</h2>
-                        <button id="btn-ai" class="btn btn-primary" onclick="requestAIAnalysis()">
-                            <span id="ai-btn-text">🔄 Minta Analisis AI</span>
-                            <div id="ai-btn-spinner" class="spinner" style="display: none;"></div>
-                        </button>
+                        <div class="card-header-actions" style="display: flex; gap: 8px;">
+                            <button id="btn-ai-all" class="btn btn-secondary" onclick="requestAllAIAnalysis()" style="background: rgba(147, 51, 234, 0.15); border: 1px solid var(--purple); color: var(--purple-text);">
+                                <span id="ai-all-btn-text">🔄 Analisis Semua Pair</span>
+                                <div id="ai-all-btn-spinner" class="spinner" style="display: none; border-color: var(--purple);"></div>
+                            </button>
+                            <button id="btn-ai" class="btn btn-primary" onclick="requestAIAnalysis()">
+                                <span id="ai-btn-text">🔍 Analisis Pair Aktif</span>
+                                <div id="ai-btn-spinner" class="spinner" style="display: none;"></div>
+                            </button>
+                        </div>
                     </div>
-                    <div id="ai-result-panel" class="ai-result-panel">
-                        <div class="ai-empty-state">
-                            Klik tombol di atas untuk menganalisis pergerakan harga **<span id="ai-active-symbol">-</span>** menggunakan AI.
+                    <div class="ai-card-content" style="padding: 16px;">
+                        <!-- Summary Table for all pairs -->
+                        <div class="ai-summary-table-container" style="margin-bottom: 20px; overflow-x: auto;">
+                            <h3 style="margin-bottom: 10px; font-size: 14px; color: var(--text-secondary); display: flex; align-items: center; gap: 6px;">📋 Ringkasan Keputusan AI (Semua Pair)</h3>
+                            <table class="ai-summary-table" style="width: 100%; border-collapse: collapse; min-width: 500px;">
+                                <thead>
+                                    <tr style="border-bottom: 1px solid var(--border); text-align: left;">
+                                        <th style="padding: 8px 12px; font-size: 12px; color: var(--text-secondary);">Mata Uang</th>
+                                        <th style="padding: 8px 12px; font-size: 12px; color: var(--text-secondary);">Keputusan AI</th>
+                                        <th style="padding: 8px 12px; font-size: 12px; color: var(--text-secondary);">Confidence</th>
+                                        <th style="padding: 8px 12px; font-size: 12px; color: var(--text-secondary);">Support</th>
+                                        <th style="padding: 8px 12px; font-size: 12px; color: var(--text-secondary);">Resistance</th>
+                                        <th style="padding: 8px 12px; font-size: 12px; color: var(--text-secondary);">Waktu Analisis</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="ai-summary-table-body">
+                                    <tr>
+                                        <td colspan="6" style="padding: 12px; text-align: center; color: var(--text-secondary);">Belum ada data analisis AI.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="form-divider" style="margin: 15px 0;">Detail Analisis Pair Aktif (<span id="ai-active-symbol">-</span>)</div>
+
+                        <div id="ai-result-panel" class="ai-result-panel">
+                            <div class="ai-empty-state">
+                                Klik tombol "Analisis Pair Aktif" di atas untuk menganalisis pergerakan harga.
+                            </div>
                         </div>
                     </div>
                 </div>

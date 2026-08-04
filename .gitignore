@@ -15,3 +15,8 @@ rad.json
 *.bclicense
 *.flf
 TestResults.xml
+
+# Bot Configs & Backups
+config.json
+latest_ai_analysis.json
+config_backup.json

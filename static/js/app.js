@@ -55,6 +55,8 @@ async function fetchConfig() {
         document.getElementById("rsi_oversold").value = data.rsi_oversold;
         document.getElementById("loop_interval_seconds").value = data.loop_interval_seconds;
         document.getElementById("gemini_api_key").value = data.gemini_api_key || "";
+        document.getElementById("strategy_mode").value = data.strategy_mode || "AI";
+        document.getElementById("min_confidence").value = data.min_confidence || 70;
 
         // Update Chart Dropdown Option list
         updateChartDropdownOptions(data.symbols);
@@ -140,6 +142,8 @@ async function saveConfig() {
     const rsiOversoldVal = document.getElementById("rsi_oversold").value;
     const intervalVal = document.getElementById("loop_interval_seconds").value;
     const geminiKeyVal = document.getElementById("gemini_api_key").value;
+    const strategyModeVal = document.getElementById("strategy_mode").value;
+    const minConfVal = document.getElementById("min_confidence").value;
 
     const payload = {
         symbols: symbolsVal,
@@ -154,7 +158,9 @@ async function saveConfig() {
         rsi_overbought: rsiOverboughtVal,
         rsi_oversold: rsiOversoldVal,
         loop_interval_seconds: intervalVal,
-        gemini_api_key: geminiKeyVal
+        gemini_api_key: geminiKeyVal,
+        strategy_mode: strategyModeVal,
+        min_confidence: minConfVal
     };
 
     try {
@@ -270,6 +276,9 @@ async function fetchStatus() {
         if (aiActiveSymbolEl && activeSymbol) {
             aiActiveSymbolEl.innerText = activeSymbol;
         }
+
+        // Fetch latest AI analysis summary table data
+        fetchLatestAIAnalysis();
 
     } catch (error) {
         console.error("Error fetching status:", error);
@@ -453,7 +462,84 @@ async function requestAIAnalysis() {
     } finally {
         // Reset button
         btnAi.disabled = false;
-        btnText.innerText = "🔄 Minta Analisis AI";
+        btnText.innerText = "🔍 Analisis Pair Aktif";
+        btnSpinner.style.display = "none";
+    }
+}
+
+// Fetch latest AI analysis for all pairs and render the summary table
+async function fetchLatestAIAnalysis() {
+    try {
+        const response = await fetch("/api/latest-ai-analysis");
+        const data = await response.json();
+        
+        const tbody = document.getElementById("ai-summary-table-body");
+        if (!tbody) return;
+        
+        if (!data || Object.keys(data).length === 0) {
+            tbody.innerHTML = `<tr><td colspan="6" style="padding: 12px; text-align: center; color: var(--text-secondary);">Belum ada data analisis AI.</td></tr>`;
+            return;
+        }
+        
+        tbody.innerHTML = "";
+        for (const symbol in data) {
+            const item = data[symbol];
+            const rec = item.recommendation.toUpperCase();
+            
+            let badgeClass = "hold";
+            if (rec === "BUY") badgeClass = "buy";
+            else if (rec === "SELL") badgeClass = "sell";
+            else if (rec === "ERROR") badgeClass = "error";
+            
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+                <td style="padding: 10px 12px;"><strong>${symbol}</strong></td>
+                <td style="padding: 10px 12px;"><span class="ai-badge ${badgeClass}">${rec}</span></td>
+                <td style="padding: 10px 12px;">${item.confidence}%</td>
+                <td style="padding: 10px 12px;">${item.support ? item.support.toFixed(5) : '-'}</td>
+                <td style="padding: 10px 12px;">${item.resistance ? item.resistance.toFixed(5) : '-'}</td>
+                <td style="padding: 10px 12px; font-size: 11px; color: var(--text-secondary);">${item.timestamp}</td>
+            `;
+            tbody.appendChild(tr);
+        }
+    } catch (error) {
+        console.error("Error fetching latest AI analysis summary:", error);
+    }
+}
+
+// Trigger bulk AI analysis for all currency pairs
+async function requestAllAIAnalysis() {
+    const btnAll = document.getElementById("btn-ai-all");
+    const btnText = document.getElementById("ai-all-btn-text");
+    const btnSpinner = document.getElementById("ai-all-btn-spinner");
+    
+    // Check if key is available
+    const geminiKeyVal = document.getElementById("gemini_api_key").value;
+    if (!geminiKeyVal) {
+        showNotification("Mohon masukkan Gemini API Key terlebih dahulu.", "error");
+        return;
+    }
+
+    btnAll.disabled = true;
+    btnText.innerText = "Menganalisis Semua...";
+    btnSpinner.style.display = "inline-block";
+
+    try {
+        const response = await fetch("/api/ai-analysis-all", { method: "POST" });
+        const result = await response.json();
+        
+        if (response.ok && result.status === "success") {
+            showNotification("Analisis AI seluruh mata uang berhasil!");
+            fetchLatestAIAnalysis();
+        } else {
+            showNotification("Gagal menganalisis semua: " + result.message, "error");
+        }
+    } catch (error) {
+        console.error("Error running bulk AI analysis:", error);
+        showNotification("Terjadi kesalahan koneksi saat menganalisis semua pair.", "error");
+    } finally {
+        btnAll.disabled = false;
+        btnText.innerText = "🔄 Analisis Semua Pair";
         btnSpinner.style.display = "none";
     }
 }
