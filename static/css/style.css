@@ -396,6 +396,14 @@ body {
     overflow: hidden;
     border: 1px solid var(--border-color);
     background-color: #131722;
+    display: flex;
+    flex-direction: column;
+}
+
+#tradingview_chart {
+    width: 100%;
+    height: 100%;
+    flex-grow: 1;
 }
 
 /* POSITIONS TABLE */
