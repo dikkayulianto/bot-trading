@@ -131,8 +131,8 @@ def api_status():
                     "tp": p.tp,
                     "profit": p.profit
                 })
-        
-        mt5.shutdown()
+        # We do not call mt5.shutdown() here to keep the process connection alive for other threads
+        pass
             
     return jsonify(status)
 
@@ -206,9 +206,6 @@ def api_ai_analysis():
     except Exception as e:
         logging.error(f"Exception in AI Analysis endpoint: {e}")
         return jsonify({"status": "error", "message": f"Sistem Error: {e}"}), 500
-        
-    finally:
-        mt5.shutdown()
 
 @app.route("/api/ai-analysis-all", methods=["POST"])
 def api_ai_analysis_all():
@@ -238,14 +235,14 @@ def api_ai_analysis_all():
             if index > 0:
                 time.sleep(index * 3.0)
                 
-            # Explicitly initialize and shutdown MT5 for each worker thread since MT5 is thread-local
+            # Explicitly initialize MT5 for each worker thread
             mt5.initialize()
             try:
                 logging.info(f"Parallel Bulk Analysis - Running Gemini AI for {symbol}...")
                 result = bot.get_gemini_market_analysis(symbol, timeframe, api_key, config_data)
                 return symbol, result
-            finally:
-                mt5.shutdown()
+            except Exception as thread_err:
+                return symbol, {"status": "error", "message": str(thread_err)}
                 
         # Run analyses in parallel with staggering
         with ThreadPoolExecutor(max_workers=len(symbols)) as executor:
@@ -278,9 +275,6 @@ def api_ai_analysis_all():
     except Exception as e:
         logging.error(f"Exception in AI Analysis All: {e}")
         return jsonify({"status": "error", "message": f"Sistem Error: {e}"}), 500
-        
-    finally:
-        mt5.shutdown()
 
 @app.route("/api/latest-ai-analysis", methods=["GET"])
 def api_latest_ai_analysis():
