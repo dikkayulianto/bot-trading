@@ -94,15 +94,10 @@ def api_status():
     }
     
     # Check MT5 connection and pull details
-    is_initialized = False
-    if bot.bot_running:
-        is_initialized = True
-    else:
-        # If bot is not running, temporarily initialize to fetch info
-        try:
-            is_initialized = mt5.initialize()
-        except Exception:
-            is_initialized = False
+    try:
+        is_initialized = mt5.initialize()
+    except Exception:
+        is_initialized = False
             
     if is_initialized:
         status["mt5_connected"] = True
@@ -137,9 +132,7 @@ def api_status():
                     "profit": p.profit
                 })
         
-        # Shutdown if initialized temporarily
-        if not bot.bot_running:
-            mt5.shutdown()
+        mt5.shutdown()
             
     return jsonify(status)
 
@@ -179,15 +172,12 @@ def api_ai_analysis():
     if not api_key:
         return jsonify({"status": "error", "message": "Mohon masukkan Gemini API Key Anda terlebih dahulu di panel pengaturan."}), 400
 
-    # Ensure MT5 is initialized
-    is_temp_init = False
-    if not bot.bot_running:
-        try:
-            if not mt5.initialize():
-                return jsonify({"status": "error", "message": "Gagal menghubungkan ke terminal MT5."}), 500
-            is_temp_init = True
-        except Exception as e:
-            return jsonify({"status": "error", "message": f"MT5 Init Exception: {e}"}), 500
+    # Ensure MT5 is initialized in this thread
+    try:
+        if not mt5.initialize():
+            return jsonify({"status": "error", "message": "Gagal menghubungkan ke terminal MT5."}), 500
+    except Exception as e:
+        return jsonify({"status": "error", "message": f"MT5 Init Exception: {e}"}), 500
 
     try:
         timeframe = config_data.get("timeframe", "M5")
@@ -218,8 +208,7 @@ def api_ai_analysis():
         return jsonify({"status": "error", "message": f"Sistem Error: {e}"}), 500
         
     finally:
-        if is_temp_init:
-            mt5.shutdown()
+        mt5.shutdown()
 
 @app.route("/api/ai-analysis-all", methods=["POST"])
 def api_ai_analysis_all():
@@ -231,15 +220,12 @@ def api_ai_analysis_all():
     symbols = config_data.get("symbols", [])
     timeframe = config_data.get("timeframe", "M5")
     
-    # Initialize MT5 if not running
-    is_temp_init = False
-    if not bot.bot_running:
-        try:
-            if not mt5.initialize():
-                return jsonify({"status": "error", "message": "Gagal menghubungkan ke terminal MT5."}), 500
-            is_temp_init = True
-        except Exception as e:
-            return jsonify({"status": "error", "message": f"MT5 Init Exception: {e}"}), 500
+    # Ensure MT5 is initialized in this thread
+    try:
+        if not mt5.initialize():
+            return jsonify({"status": "error", "message": "Gagal menghubungkan ke terminal MT5."}), 500
+    except Exception as e:
+        return jsonify({"status": "error", "message": f"MT5 Init Exception: {e}"}), 500
 
     try:
         latest_results = bot.load_latest_ai_results()
@@ -275,8 +261,7 @@ def api_ai_analysis_all():
         return jsonify({"status": "error", "message": f"Sistem Error: {e}"}), 500
         
     finally:
-        if is_temp_init:
-            mt5.shutdown()
+        mt5.shutdown()
 
 @app.route("/api/latest-ai-analysis", methods=["GET"])
 def api_latest_ai_analysis():

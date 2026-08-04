@@ -300,6 +300,7 @@ def get_gemini_market_analysis(symbol, timeframe_str, api_key, config_data):
     Tolong berikan analisis pasar mendalam, tentukan area Support (S) dan Resistance (R), evaluasi kekuatan tren, lalu berikan rekomendasi keputusan (BUY, SELL, atau HOLD) beserta skor kepercayaan dalam persen (0-100%).
     
     Anda HARUS membalas HANYA dalam format JSON dengan struktur persis seperti di bawah ini tanpa markdown tambahan (seperti ```json):
+    PENTING: Jangan gunakan tanda kutip dua (") di dalam teks "analysis" Anda. Gunakan tanda kutip tunggal (') jika diperlukan agar format JSON tidak rusak.
     {{
       "recommendation": "BUY" atau "SELL" atau "HOLD",
       "confidence": nilai integer antara 0 hingga 100,
