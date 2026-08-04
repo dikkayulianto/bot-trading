@@ -234,9 +234,9 @@ def api_ai_analysis_all():
         
         def analyze_symbol(item):
             index, symbol = item
-            # Stagger requests by index * 2 seconds to avoid Gemini API concurrency burst limits (HTTP 429)
+            # Stagger requests by index * 3.0 seconds to avoid Gemini API concurrency burst limits (HTTP 429)
             if index > 0:
-                time.sleep(index * 2.0)
+                time.sleep(index * 3.0)
                 
             # Explicitly initialize and shutdown MT5 for each worker thread since MT5 is thread-local
             mt5.initialize()

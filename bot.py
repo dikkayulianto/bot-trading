@@ -100,9 +100,6 @@ def initialize_mt5():
     """
     Initializes connection to the MetaTrader 5 terminal.
     """
-    if mt5.terminal_info() is not None:
-        return True
-
     logging.info("Initializing MetaTrader 5...")
     paths_to_try = [
         None,
@@ -353,6 +350,10 @@ def run_bot_cycle(symbol, timeframe_str, lot_size, sl_pips, tp_pips, magic_numbe
     
     symbol_info = mt5.symbol_info(symbol)
     if symbol_info is None:
+        mt5.symbol_select(symbol, True)
+        symbol_info = mt5.symbol_info(symbol)
+        
+    if symbol_info is None:
         logging.error(f"Symbol {symbol} not found.")
         return
         
@@ -380,8 +381,7 @@ def run_bot_cycle(symbol, timeframe_str, lot_size, sl_pips, tp_pips, magic_numbe
         is_new_candle = False
         if symbol not in last_processed_candles:
             last_processed_candles[symbol] = latest_candle_time
-            is_new_candle = True
-            logging.info(f"AI Strategy - Initializing tracking for {symbol} at candle {latest_candle_time}")
+            logging.info(f"AI Strategy - Initializing tracking for {symbol} at candle {latest_candle_time}. Waiting for next candle close.")
         elif latest_candle_time > last_processed_candles[symbol]:
             last_processed_candles[symbol] = latest_candle_time
             is_new_candle = True
