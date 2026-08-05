@@ -169,8 +169,10 @@ def api_ai_analysis():
 
     config_data = read_config()
     api_key = config_data.get("gemini_api_key", "").strip()
-    if not api_key:
-        return jsonify({"status": "error", "message": "Mohon masukkan Gemini API Key Anda terlebih dahulu di panel pengaturan."}), 400
+    groq_api_key = config_data.get("groq_api_key", "").strip()
+    
+    if not api_key and not groq_api_key:
+        return jsonify({"status": "error", "message": "Mohon masukkan Gemini API Key atau Groq API Key Anda terlebih dahulu di panel pengaturan."}), 400
 
     # Ensure MT5 is initialized in this thread
     try:
@@ -181,7 +183,7 @@ def api_ai_analysis():
 
     try:
         timeframe = config_data.get("timeframe", "M5")
-        result = bot.get_gemini_market_analysis(symbol, timeframe, api_key, config_data)
+        result = bot.run_ai_analysis(symbol, timeframe, config_data)
         
         if result["status"] == "success":
             # Save to latest results
@@ -211,8 +213,10 @@ def api_ai_analysis():
 def api_ai_analysis_all():
     config_data = read_config()
     api_key = config_data.get("gemini_api_key", "").strip()
-    if not api_key:
-        return jsonify({"status": "error", "message": "Mohon masukkan Gemini API Key Anda terlebih dahulu di panel pengaturan."}), 400
+    groq_api_key = config_data.get("groq_api_key", "").strip()
+    
+    if not api_key and not groq_api_key:
+        return jsonify({"status": "error", "message": "Mohon masukkan Gemini API Key atau Groq API Key Anda terlebih dahulu di panel pengaturan."}), 400
 
     symbols = config_data.get("symbols", [])
     timeframe = config_data.get("timeframe", "M5")
@@ -231,15 +235,13 @@ def api_ai_analysis_all():
         
         def analyze_symbol(item):
             index, symbol = item
-            # Stagger requests by index * 3.0 seconds to avoid Gemini API concurrency burst limits (HTTP 429)
             if index > 0:
                 time.sleep(index * 3.0)
                 
-            # Explicitly initialize MT5 for each worker thread
             mt5.initialize()
             try:
-                logging.info(f"Parallel Bulk Analysis - Running Gemini AI for {symbol}...")
-                result = bot.get_gemini_market_analysis(symbol, timeframe, api_key, config_data)
+                logging.info(f"Parallel Bulk Analysis - Running AI for {symbol}...")
+                result = bot.run_ai_analysis(symbol, timeframe, config_data)
                 return symbol, result
             except Exception as thread_err:
                 return symbol, {"status": "error", "message": str(thread_err)}

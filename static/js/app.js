@@ -55,6 +55,7 @@ async function fetchConfig() {
         document.getElementById("rsi_oversold").value = data.rsi_oversold;
         document.getElementById("loop_interval_seconds").value = data.loop_interval_seconds;
         document.getElementById("gemini_api_key").value = data.gemini_api_key || "";
+        document.getElementById("groq_api_key").value = data.groq_api_key || "";
         document.getElementById("strategy_mode").value = data.strategy_mode || "AI";
         document.getElementById("min_confidence").value = data.min_confidence || 70;
 
@@ -142,6 +143,7 @@ async function saveConfig() {
     const rsiOversoldVal = document.getElementById("rsi_oversold").value;
     const intervalVal = document.getElementById("loop_interval_seconds").value;
     const geminiKeyVal = document.getElementById("gemini_api_key").value;
+    const groqKeyVal = document.getElementById("groq_api_key").value;
     const strategyModeVal = document.getElementById("strategy_mode").value;
     const minConfVal = document.getElementById("min_confidence").value;
 
@@ -159,6 +161,7 @@ async function saveConfig() {
         rsi_oversold: rsiOversoldVal,
         loop_interval_seconds: intervalVal,
         gemini_api_key: geminiKeyVal,
+        groq_api_key: groqKeyVal,
         strategy_mode: strategyModeVal,
         min_confidence: minConfVal
     };
@@ -515,8 +518,9 @@ async function requestAllAIAnalysis() {
     
     // Check if key is available
     const geminiKeyVal = document.getElementById("gemini_api_key").value;
-    if (!geminiKeyVal) {
-        showNotification("Mohon masukkan Gemini API Key terlebih dahulu.", "error");
+    const groqKeyVal = document.getElementById("groq_api_key").value;
+    if (!geminiKeyVal && !groqKeyVal) {
+        showNotification("Mohon masukkan Gemini API Key atau Groq API Key terlebih dahulu.", "error");
         return;
     }
 

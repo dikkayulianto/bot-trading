@@ -341,6 +341,137 @@ def get_gemini_market_analysis(symbol, timeframe_str, api_key, config_data):
     except Exception as e:
         return {"status": "error", "message": f"Gemini API Exception: {e}"}
 
+def get_groq_market_analysis(symbol, timeframe_str, groq_api_key, config_data):
+    """
+    Calls Groq Cloud API (Llama 3.3 70B) to analyze the market and returns a recommendation.
+    """
+    symbol_info = mt5.symbol_info(symbol)
+    if symbol_info is None:
+        mt5.symbol_select(symbol, True)
+        symbol_info = mt5.symbol_info(symbol)
+        
+    if symbol_info is None:
+        return {"status": "error", "message": f"Simbol {symbol} tidak ditemukan."}
+
+    tick = mt5.symbol_info_tick(symbol)
+    if tick is None:
+        return {"status": "error", "message": f"Gagal mengambil harga tick {symbol}."}
+
+    mt5_tf = TIMEFRAME_MAP.get(timeframe_str, mt5.TIMEFRAME_M5)
+    df = get_historical_data(symbol, mt5_tf, count=60)
+    if df is None or len(df) < 20:
+        return {"status": "error", "message": f"Data historis {symbol} tidak cukup."}
+
+    df = strategy.calculate_indicators(
+        df, 
+        config_data.get("ema_fast", 9), 
+        config_data.get("ema_slow", 21), 
+        config_data.get("rsi_period", 14)
+    )
+
+    curr_row = df.iloc[-1]
+    
+    candles_summary = []
+    for _, row in df.tail(10).iterrows():
+        candles_summary.append(
+            f"Time: {row['time'].strftime('%Y-%m-%d %H:%M')}, O: {row['open']:.5f}, H: {row['high']:.5f}, L: {row['low']:.5f}, C: {row['close']:.5f}, Vol: {row['tick_volume']}"
+        )
+    candles_summary_str = "\n".join(candles_summary)
+
+    prompt = f"""
+    Anda adalah analis trading Forex profesional yang sangat cerdas.
+    Tolong analisis pasangan mata uang {symbol} pada timeframe {timeframe_str} berdasarkan data harga dan indikator teknis berikut:
+    
+    - Harga saat ini: Bid={tick.bid:.5f}, Ask={tick.ask:.5f}
+    - Candle Terakhir (OHLC): Open={curr_row['open']:.5f}, High={curr_row['high']:.5f}, Low={curr_row['low']:.5f}, Close={curr_row['close']:.5f}
+    - EMA Fast ({config_data.get("ema_fast", 9)}): {curr_row['ema_fast']:.5f}
+    - EMA Slow ({config_data.get("ema_slow", 21)}): {curr_row['ema_slow']:.5f}
+    - RSI ({config_data.get("rsi_period", 14)}): {curr_row['rsi']:.2f}
+    - Tren EMA: {'Bullish (Fast > Slow)' if curr_row['ema_fast'] > curr_row['ema_slow'] else 'Bearish (Fast < Slow)'}
+    
+    Analisis data historis 10 lilin terakhir (OHLCV):
+    {candles_summary_str}
+    
+    Tolong berikan analisis pasar mendalam, tentukan area Support (S) dan Resistance (R), evaluasi kekuatan tren, lalu berikan rekomendasi keputusan (BUY, SELL, atau HOLD) beserta skor kepercayaan dalam persen (0-100%).
+    
+    Anda HARUS membalas HANYA dalam format JSON dengan struktur persis seperti di bawah ini tanpa markdown tambahan:
+    PENTING: Jangan gunakan tanda kutip dua (") di dalam teks "analysis" Anda. Gunakan tanda kutip tunggal (') jika diperlukan.
+    {{
+      "recommendation": "BUY" atau "SELL" atau "HOLD",
+      "confidence": nilai integer antara 0 hingga 100,
+      "support": nilai float batas support,
+      "resistance": nilai float batas resistance,
+      "analysis": "Laporan analisis pasar lengkap Anda dalam Bahasa Indonesia. Gunakan tag HTML seperti <h3>, <p>, <ul>, dan <li> untuk membuat teks rapi."
+    }}
+    """
+
+    url = "https://api.groq.com/openai/v1/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {groq_api_key}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "model": "llama-3.3-70b-versatile",
+        "messages": [
+            {
+                "role": "user",
+                "content": prompt
+            }
+        ],
+        "response_format": {
+            "type": "json_object"
+        },
+        "temperature": 0.2
+    }
+    
+    try:
+        response = requests.post(url, headers=headers, json=payload, timeout=20)
+        if response.status_code != 200:
+            payload["model"] = "llama-3.1-8b-instant"
+            response = requests.post(url, headers=headers, json=payload, timeout=20)
+            if response.status_code != 200:
+                return {"status": "error", "message": f"Groq API HTTP {response.status_code}"}
+                
+        response_data = response.json()
+        ai_text = response_data['choices'][0]['message']['content']
+        ai_json = json.loads(ai_text)
+        
+        return {
+            "status": "success",
+            "recommendation": ai_json.get("recommendation", "HOLD").upper(),
+            "confidence": int(ai_json.get("confidence", 50)),
+            "support": float(ai_json.get("support", tick.bid)),
+            "resistance": float(ai_json.get("resistance", tick.ask)),
+            "analysis": ai_json.get("analysis", "Analisis Groq berhasil diselesaikan.")
+        }
+    except Exception as e:
+        return {"status": "error", "message": f"Groq Exception: {e}"}
+
+def run_ai_analysis(symbol, timeframe_str, config_data):
+    """
+    Executes AI analysis trying Gemini first, then falling back to Groq if configured.
+    """
+    api_key = config_data.get("gemini_api_key", "").strip()
+    groq_api_key = config_data.get("groq_api_key", "").strip()
+    strategy_mode = config_data.get("strategy_mode", "AI").upper()
+    
+    if strategy_mode == "GROQ" and groq_api_key:
+        return get_groq_market_analysis(symbol, timeframe_str, groq_api_key, config_data)
+        
+    if api_key:
+        res = get_gemini_market_analysis(symbol, timeframe_str, api_key, config_data)
+        if res.get("status") == "success":
+            return res
+        if groq_api_key:
+            logging.warning(f"Gemini API analysis failed ({res.get('message')}). Falling back to Groq API...")
+            return get_groq_market_analysis(symbol, timeframe_str, groq_api_key, config_data)
+        return res
+        
+    if groq_api_key:
+        return get_groq_market_analysis(symbol, timeframe_str, groq_api_key, config_data)
+        
+    return {"status": "error", "message": "Mohon masukkan Gemini API Key atau Groq API Key terlebih dahulu."}
+
 def run_bot_cycle(symbol, timeframe_str, lot_size, sl_pips, tp_pips, magic_number, config_data):
     """
     A single execution cycle of the trading bot for a given symbol.
@@ -371,9 +502,9 @@ def run_bot_cycle(symbol, timeframe_str, lot_size, sl_pips, tp_pips, magic_numbe
     strategy_mode = config_data.get("strategy_mode", "AI").upper()
     
     # ----------------------------------------------------
-    # MODE A: GEMINI AI DIRECTED STRATEGY
+    # MODE A: AI DIRECTED STRATEGY (Gemini / Groq)
     # ----------------------------------------------------
-    if strategy_mode == "AI":
+    if strategy_mode in ["AI", "GROQ"]:
         # Check if we have a closed candle
         latest_candle_time = df['time'].iloc[-1]
         
@@ -385,16 +516,11 @@ def run_bot_cycle(symbol, timeframe_str, lot_size, sl_pips, tp_pips, magic_numbe
         elif latest_candle_time > last_processed_candles[symbol]:
             last_processed_candles[symbol] = latest_candle_time
             is_new_candle = True
-            logging.info(f"AI Strategy - New candle detected for {symbol} at {latest_candle_time}. Triggering Gemini analysis...")
+            logging.info(f"AI Strategy - New candle detected for {symbol} at {latest_candle_time}. Triggering AI analysis...")
 
         if is_new_candle:
-            api_key = config_data.get("gemini_api_key", "").strip()
-            if not api_key:
-                logging.error(f"AI Strategy - Gemini API Key is missing. Skipping cycle for {symbol}.")
-                return
-
-            logging.info(f"AI Strategy - Running Gemini AI Market Analysis for {symbol} on {timeframe_str}...")
-            analysis_result = get_gemini_market_analysis(symbol, timeframe_str, api_key, config_data)
+            logging.info(f"AI Strategy - Running AI Market Analysis for {symbol} on {timeframe_str}...")
+            analysis_result = run_ai_analysis(symbol, timeframe_str, config_data)
             
             if analysis_result["status"] == "success":
                 rec = analysis_result["recommendation"]
