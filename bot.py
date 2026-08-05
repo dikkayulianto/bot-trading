@@ -449,16 +449,15 @@ def get_groq_market_analysis(symbol, timeframe_str, groq_api_key, config_data):
 
 def run_ai_analysis(symbol, timeframe_str, config_data):
     """
-    Executes AI analysis trying Gemini first, then falling back to Groq if configured.
+    Executes AI analysis trying Groq API (Llama 3.3 70B) first as default, then falling back to Gemini API.
     """
     api_key = config_data.get("gemini_api_key", "").strip()
     groq_api_key = config_data.get("groq_api_key", "").strip()
-    strategy_mode = config_data.get("strategy_mode", "AI").upper()
+    strategy_mode = config_data.get("strategy_mode", "GROQ").upper()
     
-    if strategy_mode == "GROQ" and groq_api_key:
-        return get_groq_market_analysis(symbol, timeframe_str, groq_api_key, config_data)
-        
-    if api_key:
+    # If explicitly set to GEMINI, try Gemini first
+    if strategy_mode == "GEMINI" and api_key:
+        logging.info(f"Running Gemini AI Market Analysis for {symbol} on {timeframe_str}...")
         res = get_gemini_market_analysis(symbol, timeframe_str, api_key, config_data)
         if res.get("status") == "success":
             return res
@@ -466,11 +465,23 @@ def run_ai_analysis(symbol, timeframe_str, config_data):
             logging.warning(f"Gemini API analysis failed ({res.get('message')}). Falling back to Groq API...")
             return get_groq_market_analysis(symbol, timeframe_str, groq_api_key, config_data)
         return res
-        
+
+    # Primary Default: Groq API (Llama 3.3 70B)
     if groq_api_key:
-        return get_groq_market_analysis(symbol, timeframe_str, groq_api_key, config_data)
+        logging.info(f"Running Groq AI (Llama 3.3 70B) Market Analysis for {symbol} on {timeframe_str}...")
+        res = get_groq_market_analysis(symbol, timeframe_str, groq_api_key, config_data)
+        if res.get("status") == "success":
+            return res
+        if api_key:
+            logging.warning(f"Groq API analysis failed ({res.get('message')}). Falling back to Gemini API...")
+            return get_gemini_market_analysis(symbol, timeframe_str, api_key, config_data)
+        return res
         
-    return {"status": "error", "message": "Mohon masukkan Gemini API Key atau Groq API Key terlebih dahulu."}
+    if api_key:
+        logging.info(f"Running Gemini AI Market Analysis for {symbol} on {timeframe_str}...")
+        return get_gemini_market_analysis(symbol, timeframe_str, api_key, config_data)
+        
+    return {"status": "error", "message": "Mohon masukkan Groq API Key atau Gemini API Key terlebih dahulu."}
 
 def run_bot_cycle(symbol, timeframe_str, lot_size, sl_pips, tp_pips, magic_number, config_data):
     """
