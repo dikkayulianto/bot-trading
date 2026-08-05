@@ -470,17 +470,74 @@ async function requestAIAnalysis() {
     }
 }
 
+let latestAnalysisCache = {};
+
+function showAnalysisDetail(symbol) {
+    const item = latestAnalysisCache[symbol];
+    const resultPanel = document.getElementById("ai-result-panel");
+    const aiActiveSymbolEl = document.getElementById("ai-active-symbol");
+    
+    if (aiActiveSymbolEl) {
+        aiActiveSymbolEl.innerText = symbol;
+    }
+    
+    if (!item || !resultPanel) return;
+    
+    const rec = (item.recommendation || "HOLD").toUpperCase();
+    let badgeClass = "hold";
+    if (rec === "BUY") badgeClass = "buy";
+    else if (rec === "SELL") badgeClass = "sell";
+
+    let formattedAnalysis = (item.analysis || "Tidak ada detail laporan.")
+        .replace(/\n/g, "<br>")
+        .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+        .replace(/\*(.*?)\*/g, "<em>$1</em>")
+        .replace(/### (.*?)(<br>|$)/g, "<h3>$1</h3>")
+        .replace(/- (.*?)(<br>|$)/g, "<li>$1</li>");
+
+    resultPanel.innerHTML = `
+        <div class="ai-summary-grid">
+            <div class="ai-stat-box">
+                <span class="ai-stat-label">Rekomendasi (${symbol})</span>
+                <span class="ai-badge ${badgeClass}">${rec}</span>
+            </div>
+            <div class="ai-stat-box">
+                <span class="ai-stat-label">Confidence Score</span>
+                <div class="confidence-wrapper">
+                    <div class="confidence-bar-bg">
+                        <div class="confidence-bar-fill" style="width: ${item.confidence}%"></div>
+                    </div>
+                    <span class="confidence-text">${item.confidence}%</span>
+                </div>
+            </div>
+            <div class="ai-stat-box">
+                <span class="ai-stat-label">Batas Support/Resistance</span>
+                <div class="ai-levels">
+                    <span>S: <span class="level-val">${item.support ? item.support.toFixed(5) : '-'}</span></span>
+                    <span>R: <span class="level-val">${item.resistance ? item.resistance.toFixed(5) : '-'}</span></span>
+                </div>
+            </div>
+            <div class="ai-stat-box full-width">
+                <span class="ai-stat-label">Laporan Analisis Pasar (${symbol})</span>
+                <div class="ai-report-box">${formattedAnalysis}</div>
+            </div>
+        </div>
+        <span class="ai-timestamp">Dianalisis pada: ${item.timestamp || '-'}</span>
+    `;
+}
+
 // Fetch latest AI analysis for all pairs and render the summary table
 async function fetchLatestAIAnalysis() {
     try {
         const response = await fetch("/api/latest-ai-analysis");
         const data = await response.json();
+        latestAnalysisCache = data;
         
         const tbody = document.getElementById("ai-summary-table-body");
         if (!tbody) return;
         
         if (!data || Object.keys(data).length === 0) {
-            tbody.innerHTML = `<tr><td colspan="6" style="padding: 12px; text-align: center; color: var(--text-secondary);">Belum ada data analisis AI.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="7" style="padding: 12px; text-align: center; color: var(--text-secondary);">Belum ada data analisis AI.</td></tr>`;
             return;
         }
         
@@ -495,6 +552,8 @@ async function fetchLatestAIAnalysis() {
             else if (rec === "ERROR") badgeClass = "error";
             
             const tr = document.createElement("tr");
+            tr.style.cursor = "pointer";
+            tr.onclick = function() { showAnalysisDetail(symbol); };
             tr.innerHTML = `
                 <td style="padding: 10px 12px;"><strong>${symbol}</strong></td>
                 <td style="padding: 10px 12px;"><span class="ai-badge ${badgeClass}">${rec}</span></td>
@@ -502,8 +561,23 @@ async function fetchLatestAIAnalysis() {
                 <td style="padding: 10px 12px;">${item.support ? item.support.toFixed(5) : '-'}</td>
                 <td style="padding: 10px 12px;">${item.resistance ? item.resistance.toFixed(5) : '-'}</td>
                 <td style="padding: 10px 12px; font-size: 11px; color: var(--text-secondary);">${item.timestamp}</td>
+                <td style="padding: 10px 12px;">
+                    <button class="btn btn-secondary" style="padding: 3px 8px; font-size: 11px; background: var(--bg-card); border: 1px solid var(--border);" onclick="event.stopPropagation(); showAnalysisDetail('${symbol}')">
+                        🔍 Detail
+                    </button>
+                </td>
             `;
             tbody.appendChild(tr);
+        }
+
+        // Auto-show active chart symbol analysis if available and panel is empty/default
+        const symbolSelect = document.getElementById("chart-symbol-select");
+        const activeSymbol = symbolSelect ? symbolSelect.value : null;
+        if (activeSymbol && latestAnalysisCache[activeSymbol]) {
+            const resultPanel = document.getElementById("ai-result-panel");
+            if (resultPanel && resultPanel.querySelector(".ai-empty-state")) {
+                showAnalysisDetail(activeSymbol);
+            }
         }
     } catch (error) {
         console.error("Error fetching latest AI analysis summary:", error);
